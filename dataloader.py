@@ -59,9 +59,10 @@ class Pendulum(Dataset):
 
         return s, s1, h
 
-    # def get_traj(self):
-    #     return torch.from_numpy(np.stack(self.s[:self.T_trj], 0)).float().to(self.device), torch.from_numpy(np.array([self.H[:self.T_trj]])).float().to(self.device)
-
+    def get_traj(self):
+         return torch.from_numpy(np.stack(self.s[:self.T_trj], 0)).float().to(self.device), torch.from_numpy(np.array([self.H[:self.T_trj]])).float().to(self.device)
+    
+    '''
     def get_traj(self):
 
         trajectory = []
@@ -87,3 +88,4 @@ class Pendulum(Dataset):
         Hamiltonian = np.expand_dims(np.stack(([np.mean(np.array(all_h)) for _ in range(len(all_h))])), -1)
 
         return torch.from_numpy(np.stack(trajectory, 0)).float().to(self.device), torch.from_numpy(Hamiltonian).float().to(self.device)
+'''

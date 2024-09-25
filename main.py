@@ -11,10 +11,10 @@ from models import Arnold_Liouville
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-writer = SummaryWriter("./logs/boh_harmonic_overfit_tot3")
+writer = SummaryWriter("./logs/boh_harmonic_overfit_1traj_eucl")
 
 T_trj = 100
-N_trj = 100
+N_trj = 1#100
 input_dim = 2
 EPOCHS = 10000000000000000
 
@@ -38,16 +38,20 @@ for epoch in tqdm(range(EPOCHS)):
     # try latent integration
 
     x, h = dataset.get_traj()
-    z = model.get_repr(x[0:1])
-    i = model.Integrator(h[0:1, 0:1])
-    k = torch.squeeze(model.Actor(h[0:1, 0:1]))
-    x_hat = [model.psi(torch.cat([z, i], -1))]
-    x_hat_pred = [model.psi(torch.cat([z, i], -1))]
+    
+    #i = model.Integrator(h[0:1, 0:1])
+    #k = torch.squeeze(model.Actor(h[0:1, 0:1]))**2
+    z = model.get_repr(x[0:1],h[0:1, 0:1])
+    #x_hat = [model.psi(torch.cat([z, i], -1))]
+    #x_hat_pred = [model.psi(torch.cat([z, i], -1))]
+    x_hat = [model.psi(z)]
+    x_hat_pred = [model.psi(z)]
     for t in range(x.shape[0]-1):
-        z = model.get_next_state(z, k)
+        z = model.get_next_state(z)
         # z += k
-        x_hat.append(model.psi(torch.cat([model.get_repr(x[t:t+1]), i], -1)))
-        x_hat_pred.append(model.psi(torch.cat([z, i], -1)))
+        x_hat.append(model.psi(model.get_repr(x[t:t+1],h[0:1, 0:1])))
+
+        x_hat_pred.append(model.psi(z))
     x_hat = torch.cat(x_hat, 0)
     x_hat_pred = torch.cat(x_hat_pred, 0)
 

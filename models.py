@@ -55,7 +55,7 @@ class Arnold_Liouville(nn.Module):
         c = torch.cos(alpha)
         rot = torch.stack([torch.stack([c, -s], -1),
                            torch.stack([s, c], -1)], -1)
-        return z @ rot #torch.squeeze(torch.bmm(torch.unsqueeze(z, 1), rot))
+        return (z @ rot)[0] #torch.squeeze(torch.bmm(torch.unsqueeze(z, 1), rot))
 
 
     def optimize(self, batch):
@@ -73,6 +73,9 @@ class Arnold_Liouville(nn.Module):
         
         z = self.phi(torch.cat([x, H], -1))
         z1 = self.phi(torch.cat([x1, H], -1))
+
+        # energy = torch.mean(torch.log(1/torch.linalg.norm(z, dim=-1)))
+        energy = torch.mean(torch.exp(-(torch.linalg.norm(z, dim=-1))/0.1))+torch.mean(torch.exp(-(torch.linalg.norm(z1, dim=-1))/0.1))
         
         alpha = 1/(torch.norm(z, dim = 1))
         
@@ -96,11 +99,11 @@ class Arnold_Liouville(nn.Module):
         
         x1_dyn_hat = 0 #self.psi(torch.cat([z1_hat, I], -1))
 
-        psi_loss = 10*(torch.mean((x - x_hat)**2) + torch.mean((x1 - x1_hat)**2)) #+ torch.mean((x1 - x1_dyn_hat)**2))
+        psi_loss = (torch.mean((x - x_hat)**2) + torch.mean((x1 - x1_hat)**2)) #+ torch.mean((x1 - x1_dyn_hat)**2))
         #phi_loss = -torch.log(torch.mean(self.distance(z1, z1_hat)) )
         
-        phi_loss = -torch.mean(self.distance(z1, z1_hat)) 
-        # phi_loss = torch.mean((z1 - z1_hat) ** 2)
+        # phi_loss = -torch.mean(self.distance(z1, z1_hat))
+        phi_loss = torch.mean((z1 - z1_hat) ** 2)
         # phi_loss = torch.mean((z1 - z - K)**2)
 
         # idx = np.arange(z1.shape[0])
@@ -108,7 +111,7 @@ class Arnold_Liouville(nn.Module):
         # phi_loss_neg = torch.mean(self.distance(z1, z1_hat[idx]))
 
         self.opt.zero_grad()
-        (psi_loss+phi_loss).backward()
+        (psi_loss+phi_loss+energy).backward()
         self.opt.step()
 
         return psi_loss.detach().cpu().item(), phi_loss.detach().cpu().item()

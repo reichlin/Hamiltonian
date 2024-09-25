@@ -21,7 +21,7 @@ class Pendulum(Dataset):
 
         for i in tqdm(range(N_trj)):
 
-            theta_t, theta_prime_t = np.random.random()*2*np.pi, np.random.random()*4-2
+            theta_t, theta_prime_t = np.random.random()*np.pi-np.pi/2, np.random.random()*2-1
             # theta_t, theta_prime_t = -1.198, -2.1239
 
             all_h = []
@@ -48,6 +48,7 @@ class Pendulum(Dataset):
             self.H.extend([np.mean(np.array(all_h)) for _ in range(len(all_h))])
 
 
+
     def __len__(self):
         return len(self.s)
 
@@ -59,16 +60,17 @@ class Pendulum(Dataset):
 
         return s, s1, h
 
-    def get_traj(self):
-         return torch.from_numpy(np.stack(self.s[:self.T_trj], 0)).float().to(self.device), torch.from_numpy(np.array([self.H[:self.T_trj]])).float().to(self.device)
+    # def get_traj(self):
+    #      return torch.from_numpy(np.stack(self.s[:self.T_trj], 0)).float().to(self.device), torch.from_numpy(np.array([self.H[:self.T_trj]])).float().to(self.device)
     
-    '''
+
     def get_traj(self):
 
         trajectory = []
         Hamiltonian = []
 
-        theta_t, theta_prime_t = np.random.random() * 2 * np.pi, np.random.random() * 4 - 2
+        # theta_t, theta_prime_t = np.random.random() * 2 * np.pi, np.random.random() * 2 - 1
+        theta_t, theta_prime_t = np.random.random() * np.pi - np.pi / 2, np.random.random() * 2 - 1
 
         all_h = []
         for t in range(self.T_trj):
@@ -88,4 +90,3 @@ class Pendulum(Dataset):
         Hamiltonian = np.expand_dims(np.stack(([np.mean(np.array(all_h)) for _ in range(len(all_h))])), -1)
 
         return torch.from_numpy(np.stack(trajectory, 0)).float().to(self.device), torch.from_numpy(Hamiltonian).float().to(self.device)
-'''

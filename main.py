@@ -11,10 +11,10 @@ from models import Arnold_Liouville
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-writer = SummaryWriter("./logs/boh_harmonic_overfit_1traj_eucl")
+writer = SummaryWriter("./logs/boh_harmonic_overfit_1000traj_eucl4_slow_energy_reg3")
 
 T_trj = 100
-N_trj = 1#100
+N_trj = 1000 #100
 input_dim = 2
 EPOCHS = 10000000000000000
 

@@ -22,6 +22,7 @@ class Pendulum(Dataset):
         for i in tqdm(range(N_trj)):
 
             theta_t, theta_prime_t = np.random.random()*2*np.pi, np.random.random()*4-2
+            # theta_t, theta_prime_t = -1.198, -2.1239
 
             all_h = []
             for t in range(self.T_trj):
@@ -57,6 +58,9 @@ class Pendulum(Dataset):
         h = torch.from_numpy(np.array([self.H[idx]])).float().to(self.device)
 
         return s, s1, h
+
+    # def get_traj(self):
+    #     return torch.from_numpy(np.stack(self.s[:self.T_trj], 0)).float().to(self.device), torch.from_numpy(np.array([self.H[:self.T_trj]])).float().to(self.device)
 
     def get_traj(self):
 

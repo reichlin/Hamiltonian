@@ -11,7 +11,7 @@ from models import Arnold_Liouville
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-writer = SummaryWriter("./logs/boh_harmonic")
+writer = SummaryWriter("./logs/boh_harmonic_overfit_tot3")
 
 T_trj = 100
 N_trj = 100
@@ -39,8 +39,8 @@ for epoch in tqdm(range(EPOCHS)):
 
     x, h = dataset.get_traj()
     z = model.get_repr(x[0:1])
-    i = model.Integrator(h[0:1])
-    k = torch.squeeze(model.Actor(h[0:1]))
+    i = model.Integrator(h[0:1, 0:1])
+    k = torch.squeeze(model.Actor(h[0:1, 0:1]))
     x_hat = [model.psi(torch.cat([z, i], -1))]
     x_hat_pred = [model.psi(torch.cat([z, i], -1))]
     for t in range(x.shape[0]-1):

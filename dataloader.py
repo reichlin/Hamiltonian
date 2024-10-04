@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from scipy.integrate import odeint
 from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -98,9 +99,9 @@ class DoublePendulum(Dataset):
         self.delta_t = 0.01
 
         self.init_angle1 = [np.pi, -np.pi]
-        self.init_vel1 = [2, -2]
+        self.init_vel1 = [2, 0]
         self.init_angle2 = [np.pi, -np.pi]
-        self.init_vel2 = [2, -2]
+        self.init_vel2 = [2, 0]
 
         self.s = []
         self.s1 = []
@@ -117,26 +118,6 @@ class DoublePendulum(Dataset):
         self.s = np.concatenate(self.s, 0)
         self.H = np.concatenate(self.H, 0)
         self.s1 = np.concatenate(self.s1, 0)
-
-    # def f(self, theta1, theta2, p1, p2):
-    #
-    #     l1, l2, m1, m2, g = self.l1, self.l2, self.m1, self.m2, self.g
-    #
-    #     A1 = (p1 * p2 * np.sin(theta1 - theta2)) / (l1 * l2 * (m1 + m2 * np.sin(theta1 - theta2) ** 2))
-    #     A2 = 1 / (2 * l1 ** 2 * l2 ** 2 * (m1 + m2 * np.sin(theta1 - theta2) ** 2)) ** 2 * (p1 ** 2 * m2 * l2 ** 2 - 2 * p1 * p2 * m2 * l1 * l2 * np.cos(theta1 - theta2) + p2 ** 2 * (m1 + m2) * l1 ** 2) * np.sin(2 * (theta1 - theta2))
-    #
-    #     theta1_prime = (p1 * l2 - p2 * l1 * np.cos(theta1 - theta2)) / (l1 ** 2 * l2 * (m1 + m2 * np.sin(theta1 - theta2) ** 2))
-    #     theta2_prime = (p2 * (m1 + m2) * l1 - p1 * m2 * l2 * np.cos(theta1 - theta2)) / (m2 * l1 * l2 ** 2 * (m1 + m2 * np.sin(theta1 - theta2) ** 2))
-    #
-    #     p1_prime = -(m1 + m2) * g * l1 * np.sin(theta1) - A1 + A2
-    #     p2_prime = -m2 * g * l2 * np.sin(theta2) + A1 - A2
-    #
-    #     new_theta1 = theta1 + self.delta_t*theta1_prime
-    #     new_theta2 = theta2 + self.delta_t * theta2_prime
-    #     new_p1 = p1 + self.delta_t * p1_prime
-    #     new_p2 = p2 + self.delta_t * p2_prime
-    #
-    #     return new_theta1, new_theta2, new_p1, new_p2, theta1_prime, theta2_prime
 
     def update_momenta_half_step(self, theta1, theta2, p1, p2):
         # Calculate the half-step updates for momenta
@@ -184,8 +165,6 @@ class DoublePendulum(Dataset):
 
         for t in range(self.T_trj):
 
-            #new_theta1, new_theta2, new_p1, new_p2, new_theta1_prime, new_theta2_prime = self.f(theta1, theta2, p1, p2)
-
             p1_half, p2_half = self.update_momenta_half_step(theta1, theta2, p1, p2)
             new_theta1 = theta1 + self.delta_t * self.theta_prime(theta1, theta2, p1_half, p2_half)
             new_theta2 = theta2 + self.delta_t * self.theta_prime(theta2, theta1, p2_half, p1_half)
@@ -225,6 +204,84 @@ class DoublePendulum(Dataset):
 
 
 
+class CoupledHarmonicOscillator(Dataset):
+
+    def __init__(self, N_trj, T_trj, N, device):
+
+        self.device = device
+        self.T_trj = T_trj
+
+        self.N = N
+
+        self.m = 1.0  # Mass of each oscillator
+        self.k = 1.0  # Spring constant
+        self.k_coupling = 0.5
+        self.init_p = [1, -1]
+        self.init_v = [1, -1]
+
+        self.s = []
+        self.s1 = []
+        self.H = []
+
+        for i in tqdm(range(N_trj)):
+
+            x_initial = np.random.uniform(self.init_p[1], self.init_p[0], self.N)
+            v_initial = np.random.uniform(self.init_v[1], self.init_v[0], self.N)
+            y_initial = np.concatenate([x_initial, v_initial])
+
+            t = np.arange(self.T_trj+1)
+            solution = odeint(self.equation, y_initial, t, args=(self.N, self.m, self.k, self.k_coupling))
+
+            self.s.append(solution[:-1])
+            self.s1.append(solution[1:])
+
+        self.s = np.concatenate(self.s, 0)
+        self.s1 = np.concatenate(self.s1, 0)
+
+    def equation(self, y, t, N, m, k, k_coupling):
+        x = y[:N]  # Positions of the oscillators
+        v = y[N:]  # Velocities of the oscillators
+
+        # Initialize derivatives (dx/dt = v, dv/dt = acceleration)
+        dxdt = v
+        dvdt = np.zeros(N)
+
+        # Equations of motion for each oscillator
+        for i in range(N):
+            # Harmonic force acting on the i-th oscillator
+            force = -k * x[i]
+
+            # Add coupling forces from neighboring oscillators
+            if i > 0:
+                force += k_coupling * (x[i - 1] - x[i])  # Coupling from the left neighbor
+            if i < N - 1:
+                force += k_coupling * (x[i + 1] - x[i])  # Coupling from the right neighbor
+
+            # Acceleration = Force / Mass
+            dvdt[i] = force / m
+
+        return np.concatenate([dxdt, dvdt])
+
+    def __len__(self):
+        return len(self.s)
+
+    def __getitem__(self, idx):
+
+        s = torch.from_numpy(self.s[idx]).float().to(self.device)
+        s1 = torch.from_numpy(self.s1[idx]).float().to(self.device)
+
+        return s, s1, s*0
+
+    def get_traj(self):
+
+        x_initial = np.random.uniform(self.init_p[1], self.init_p[0], self.N)
+        v_initial = np.random.uniform(self.init_v[1], self.init_v[0], self.N)
+        y_initial = np.concatenate([x_initial, v_initial])
+
+        t = np.arange(self.T_trj + 1)
+        solution = odeint(self.equation, y_initial, t, args=(self.N, self.m, self.k, self.k_coupling))
+
+        return torch.from_numpy(solution).float().to(self.device), None
 
 
 
